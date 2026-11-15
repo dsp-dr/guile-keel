@@ -1,0 +1,40 @@
+Context
+  Licence chosen by surveying the sibling repositories rather than by picking
+  a default, at the owner's instruction ("look through our other public repos
+  and pick one to align: i think MIT is fine").
+
+Census of the 28 public dsp-dr repositories, via the REST licence endpoint
+  9  MIT            (including this one, after this commit)
+  3  NOASSERTION    licence text that GitHub cannot match exactly
+  2  GPL-3.0
+  1  Apache-2.0     hegel-guile
+  13 none
+  MIT is therefore the house default among those that carry one.
+
+Alignment target
+  dsp-dr/guile-skills, the most recently licensed sibling. LICENSE here is a
+  byte-for-byte copy, SHA-256
+  4bfcd490354f46118d11fedd49a951bfc8328d6a7fa176a93321d37d20cf3e82, so the
+  copyright line reads "Copyright (c) 2026 dsp-dr". Older siblings use
+  inconsistent holder styles (DSP-DR, DevOps Team, "guile-sage contributors");
+  the lowercase account name is the current one. The text is
+  normalisation-identical to GitHub's canonical MIT body, ASCII, LF endings.
+  The README's License section copies guile-sage's wording.
+
+  Note that the holder is the account, not the commit author: commits here are
+  authored by Daria Pascal <dpascal@defrecord.com>, but the house convention
+  puts the GitHub account in the copyright line.
+
+Two measurement errors made while establishing the above, recorded so the
+numbers are not trusted blindly next time
+  1. The first survey used GraphQL (gh repo list --json licenseInfo) and
+     reported all 28 repositories as unlicensed, which led to the wrong
+     conclusion that there was nothing to align with. That field returns an
+     object with a null spdxId here and paginates inconsistently. It is not
+     reliable; the REST endpoint repos/OWNER/REPO/licence is.
+  2. A follow-up per-repository check used .license.spdxId on the REST
+     endpoint, where the field is snake_case .license.spdx_id, and so printed
+     empty for every repository that does in fact carry a licence.
+  GitHub's detection is also asynchronous: this repository reported no licence
+  immediately after the push and MIT shortly afterwards. An immediate "not
+  detected" means nothing.
