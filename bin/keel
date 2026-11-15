@@ -1,9 +1,25 @@
-#!/usr/bin/env -S guile --no-auto-compile -e main -s
+#!/bin/sh
+# -*- mode: scheme -*-
+# A /bin/sh trampoline rather than a guile shebang: "env -S guile" needs a
+# binary literally named guile, which a host carrying only guile3 lacks.
+# Guile reads this shebang block as a comment, so the file is its own script.
+# Never write the block terminator in the lines above it: Guile closes the
+# comment at the first one it meets and would then read shell as Scheme.
+KEEL_HOME=$(cd "$(dirname "$0")/.." && pwd) || exit 1
+export KEEL_HOME
+GUILE=${GUILE:-$(command -v guile3 2>/dev/null || command -v guile-3.0 2>/dev/null || command -v guile 2>/dev/null)}
+if [ -z "$GUILE" ]; then
+  echo "keel: no Guile found (tried guile3, guile-3.0, guile); set GUILE=..." >&2
+  exit 127
+fi
+exec "$GUILE" --no-auto-compile -e main -s "$0" "$@"
 !#
 ;;; keel [--bare] [-e CODE] FILE ...
 ;;; Load forth/frames.fs (unless --bare), then each FILE and each -e CODE in order.
 ;;; Exit 1 on the first error, printing it to stderr.
-(define here-dir (dirname (dirname (current-filename))))
+(define here-dir
+  (or (getenv "KEEL_HOME")                      ; set by the trampoline above
+      (dirname (dirname (current-filename)))))  ; loaded directly, e.g. -l bin/keel
 (set! %load-path (cons (string-append here-dir "/src") %load-path))
 (set! %load-compiled-path (cons (string-append here-dir "/build") %load-compiled-path))
 (use-modules (keel vm) (keel outer) (ice-9 match))
