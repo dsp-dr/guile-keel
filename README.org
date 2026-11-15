@@ -9,6 +9,7 @@
 [[https://img.shields.io/badge/mutants-30%2F30%20killed-brightgreen.svg]]
 [[https://img.shields.io/badge/cells-32--bit-blue.svg]]
 [[https://img.shields.io/badge/platform-FreeBSD%20%7C%20Linux-lightgrey.svg]]
+[[https://img.shields.io/badge/license-MIT-blue.svg]]
 
 A Guile 3 host for [[https://github.com/aygp-dr/forth-keel][forth-keel]]: the
 13 keel primitives and an inner interpreter in Scheme, and the frames layer
@@ -171,3 +172,7 @@ the suites tests the inlined guards from *before* the edit.
   gforth's interpret-state warnings.
 - Error messages are ~keel: FILE:LINE: message~ and stop the file.
 - Cells are 32 bits; gforth on x86_64 has 64-bit cells.
+
+* License
+
+MIT License - see LICENSE file for details.
