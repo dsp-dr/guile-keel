@@ -1,0 +1,51 @@
+Context
+  Follow-up pass after the initial import, once gforth was installed and
+  forth-keel checked out, so every claim in the build spec was reproduced
+  on nexus. The spec was then retired from the tree.
+
+What changed and why
+  1. guile-keel-2026-11-15.org removed (commit aae41cf). It was the handoff
+     carrier, not project content. Archived in a secret gist held by the
+     maintainer; the URL is deliberately NOT recorded in this repository,
+     because the repository is public and the gist is secret-by-URL. The
+     file also remains in history at d071b7b, and the gist was verified to
+     round-trip byte-identically (SHA-256
+     89987accc8da1e391c2621b27d145f57dce19c0c762f712489699466507a6c7f).
+  2. README.md -> README.org (commit 9ecf140). Markup only; no prose edits.
+     Backtick spans became ~tilde~ verbatim rather than =equals= verbatim,
+     because Forth words containing = (0= <> =) would otherwise terminate
+     their own markup.
+  3. Badges added, limited to what this repository's own tests establish.
+     No CI badge and no licence badge: there is no workflow and no LICENSE
+     file. A licence is worth adding now that the repository is public.
+  4. Topics set: forth, guile, scheme, forth-interpreter, threaded-code,
+     sectorforth, bootstrapping, virtual-machine, interpreter,
+     literate-programming, org-mode, freebsd.
+  5. Visibility private -> public at the requester's instruction. The
+     pre-staging secret scan covers this; nothing sensitive was ever in the
+     tree.
+
+Verification after these changes
+  PASS  gmake from clean: cell-test, vm-test, outer-test, frames-diff
+        (57 lines identical to gforth 0.7.3)
+  PASS  gmake trials: layer 0 22/22, pass 22 fail 0 skip 0
+  Nothing in the build references README or the org file, so the format
+  change cannot affect it; re-run anyway rather than assumed.
+
+Known consequences
+  - The spec's Verify section now describes a tree that no longer exists:
+    README.md is gone and README.org is not in its digest list. That is
+    expected, and the reason the spec was retired rather than kept and
+    edited. Re-running its Verify section against this tree will report
+    DIFF for README.md.
+  - GitHub renders Mermaid in Markdown but not inside Org files, so the two
+    diagrams in README.org now display as source rather than as drawn
+    graphs. Pre-rendering them to SVG and linking the images would restore
+    the picture; not done, because it adds generated artefacts to the tree.
+  - README still reads "Results on this host (Guile 3.0.9, x86_64)", which
+    was the spec author's host, not nexus. Carried over verbatim because
+    this pass was a format conversion. On nexus the same figures hold with
+    Guile 3.0.10 on FreeBSD 15.1 amd64, with trials at 8.4 s rather than 6 s.
+  - forth-keel is needed only by the trials target; gmake does not depend on
+    it. It was cloned to ~/ghq/github.com/aygp-dr/forth-keel, which is where
+    the Makefile default FORTH_KEEL=../../aygp-dr/forth-keel resolves.
