@@ -20,8 +20,17 @@ build/%.go: src/%.scm
 
 test: build unit frames-diff
 
+# --fresh-auto-compile is not optional. The suites are auto-compiled into
+# ~/.cache/guile/ccache keyed by their own path and mtime, and the modules
+# export define-inlinable procedures (mem@, push!, pop!, rpush!, rpop!) whose
+# bodies are inlined into that cached bytecode. Edit a module, leave a suite
+# untouched, and the stale cache runs the previous version of every inlined
+# guard. Mutation testing caught this: a deleted return-stack underflow check
+# passed the suites with the cache warm and failed them without it.
+GUILE_TEST_FLAGS ?= --fresh-auto-compile
+
 unit:
-> @cd tests && for t in cell-test vm-test outer-test; do $(GUILE) -L ../src -C ../build $$t.scm > /dev/null 2>&1 || { echo "FAIL $$t"; $(GUILE) -L ../src -C ../build $$t.scm 2>&1 | grep -E "FAIL|fail|ERROR" | head; exit 1; }; echo "PASS $$t"; done; rm -f *.log
+> @cd tests && for t in cell-test vm-test outer-test; do $(GUILE) $(GUILE_TEST_FLAGS) -L ../src -C ../build $$t.scm > /dev/null 2>&1 || { echo "FAIL $$t"; $(GUILE) $(GUILE_TEST_FLAGS) -L ../src -C ../build $$t.scm 2>&1 | grep -E "FAIL|fail|ERROR" | head; exit 1; }; echo "PASS $$t"; done; rm -f *.log
 
 frames-diff:
 > @tests/frames-diff.sh

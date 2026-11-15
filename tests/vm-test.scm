@@ -70,6 +70,28 @@
             (raised-key (lambda () (run vm (list (- mem-size 1)) "@"))))
 (test-equal "! one byte below the top of memory cannot write a whole cell" 'keel-error
             (raised-key (lambda () (run vm (list 7 (- mem-size 1)) "!"))))
+
+;; emit must pass bytes 128-255 through unaltered; the output port is set to
+;; ISO-8859-1 for exactly that reason. Every other emit test uses ASCII, so a
+;; mask of 127 in place of 255 would go unnoticed.
+(let ((out (open-output-string)))
+  (set-vm-out! vm out)
+  (run vm '(200 65) "emit" "emit")
+  (test-equal "emit passes high-bit bytes through unaltered" '(65 200)
+              (map char->integer (string->list (get-output-string out))))
+  (set-vm-out! vm (current-output-port)))
+
+;; The step budget must stop a runaway. The return stack holds 1024 cells, so
+;; a budget well below that has to fire first; otherwise this only proves the
+;; return-stack guard works, which a separate test already covers.
+(let ((v (fresh)))
+  (interpret-string! v ": forever")
+  (let ((self (header>xt v (mem@ v a-latest))))
+    (comma! v self)
+    (interpret-string! v ";")
+    (set-vm-steps! v 100)
+    (test-equal "the step budget fires before the return stack fills" "step limit reached"
+                (raised-msg (lambda () (run-xt! v self))))))
 (let ((vm2 (fresh)))
   ;; a word that calls itself forever overflows the return stack
   (interpret-string! vm2 ": forever")
