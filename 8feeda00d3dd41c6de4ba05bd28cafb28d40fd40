@@ -1,0 +1,85 @@
+Context
+  Second working session: make the build honour its own tool variables, find
+  out whether the tests are worth anything, and wire CI. Commits 9c702f0,
+  10f7a1a, 6789893, 2d690f6, 8feeda0.
+
+Host
+  nexus, FreeBSD 15.1-RELEASE amd64, dsp-dr. guile3 3.0.10, bare guile 2.2.7,
+  gforth 0.7.3_15 (installed by jwalsh at 13:59), gmake, bash 5.3.15.
+
+Correction to the previous note
+  That note said gmake GUILE=guile3 was "not sufficient on nexus", implying
+  the build was broken here. It was not: the sources are Guile 2.2 compatible
+  and gmake passes all four suites under bare guile 2.2.7. The defect was
+  narrower and real - the unit recipe ignored $(GUILE) entirely, so the
+  variable selected the compiler but not the interpreter that ran the tests.
+
+Tool selection (9c702f0)
+  Three defects, none of which failed where the binaries are named as assumed:
+  the unit recipe called bare guile rather than $(GUILE); GFORTH was declared
+  and never used, frames-diff.sh hardcoding gforth; bin/keel used env -S guile,
+  which needs a binary literally named guile. bin/keel is now a /bin/sh
+  trampoline preferring guile3, guile-3.0, guile, honouring $GUILE, exporting
+  KEEL_HOME so it runs from any directory, exiting 127 with a message when no
+  Guile exists. GUILE and GFORTH are exported from the Makefile.
+
+  One self-inflicted bug worth recording: the first trampoline did not work,
+  because the explanatory comment in the shell preamble contained the literal
+  block-comment terminator. Guile closes the shebang comment at the first one
+  it meets, then read the remaining shell text as Scheme (Unbound variable: as).
+  Never write that terminator in the preamble prose.
+
+Mutation testing (10f7a1a, 2d690f6)
+  tests/mutants.sh: 30 mutants across the three modules, three oracles tried
+  in increasing cost (compile, unit suites, gforth differential). First run
+  killed 26. Second run, after the fixes below, killed 30 of 30 - 29 by the
+  unit suites and one (little-endian memory turned big-endian) only by the
+  differential test, which is that test's justification.
+
+  The important finding is not a missing test. The suites were running stale
+  bytecode. Guile auto-compiles each suite into ~/.cache/guile/ccache keyed by
+  that file's own path and mtime, and the modules export define-inlinable
+  procedures (mem@ mem! push! pop! rpush! rpop!) whose bodies are inlined into
+  the cached object. Change a module, leave the suite untouched, and the cache
+  still holds the previous version of every inlined guard. Deleting the
+  return-stack underflow check left gmake unit passing; the same mutation in a
+  copy of the tree at another path failed at once, because no cache entry
+  existed there. --no-auto-compile does NOT help, Guile still loads the stale
+  object; only --fresh-auto-compile invalidates it. The unit recipe now passes
+  it, at about a second. This affects ordinary editing, not only the harness.
+
+  Seven coverage gaps closed, each found by a surviving mutant:
+  - SRFI-64 test-error does not enforce the error kind in the simple runner,
+    so "keel raises keel-error" also passed when a host arithmetic or bytevector
+    error escaped a deleted guard. um/mod zero-divisor and overflow, and the @/!
+    cell-width bounds, now assert the raised key or message.
+  - s32 was probed only at and above the sign bit, where a boundary moved down
+    to 2^30 still answers correctly. Now probed at 2^30 and 2^31-1 too.
+  - Data-stack underflow was tested with +, which pops twice, so an off-by-one
+    guard still tripped on the second pop. Now tested with 0=, a single pop.
+  - emit was never given a byte above ASCII, so masking with 127 instead of 255
+    changed nothing observable, although the port is ISO-8859-1 for that reason.
+  - The step budget had no test at all; the existing runaway test recurses and
+    trips the return-stack guard instead.
+  - No name anywhere exceeded 14 characters (resolve-leaves), so a length mask
+    of 15 rather than 31 was indistinguishable. 16, 31 and 32 now covered.
+
+  The harness undoes mutations with git checkout rather than a saved copy: a
+  trap cannot run when the process is killed, and an interrupted first run did
+  leave a mutated vm.scm in the tree, recovered from HEAD. It refuses to start
+  when the three modules have uncommitted changes, and caps each mutant with a
+  timeout.
+
+CI (8feeda0)
+  Five jobs. First run 43756838368: all green, mutation suite correctly
+  skipped on a push event. The FreeBSD VM job selected guile3 3.0.11 and
+  gforth 0.7.3 and passed all four suites, so the build is confirmed on
+  3.0.10 (nexus), 3.0.11 (FreeBSD VM), 2.2.7 (nexus, forced) and the Linux
+  runner's 3.0.x. mutants is kept off the push path: 30 mutants is 30 full
+  rebuilds, about fifteen minutes.
+
+Still open
+  The repository is public and has no LICENSE file. Left for the owner to
+  choose; it is not a thing to pick on someone's behalf.
+  README still reads "Results on this host (Guile 3.0.9, x86_64)", which was
+  the spec author's machine. Left verbatim rather than quietly rewritten.
