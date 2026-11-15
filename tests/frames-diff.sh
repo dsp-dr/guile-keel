@@ -2,7 +2,7 @@
 # Run tests/frames-check.fs on gforth and on keel; the outputs must be identical.
 # GFORTH and KEEL select the two implementations; the Makefile exports GFORTH.
 set -u
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 GFORTH=${GFORTH:-gforth}
 KEEL=${KEEL:-bin/keel}
 

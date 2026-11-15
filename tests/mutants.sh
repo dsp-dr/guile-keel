@@ -17,9 +17,13 @@ command -v "$GMAKE" > /dev/null 2>&1 || GMAKE="make"
 # Cap each mutant: one of them disables the interpreter's step budget, so a
 # runaway is a possible outcome rather than a surprise.
 PER_MUTANT_TIMEOUT=${PER_MUTANT_TIMEOUT:-180}
-if command -v timeout > /dev/null 2>&1; then TO="timeout $PER_MUTANT_TIMEOUT"; else TO=""; fi
+if command -v timeout > /dev/null 2>&1; then
+  TO=(timeout "$PER_MUTANT_TIMEOUT")
+else
+  TO=()
+fi
 
-SOURCES="src/keel/cell.scm src/keel/vm.scm src/keel/outer.scm"
+SOURCES=(src/keel/cell.scm src/keel/vm.scm src/keel/outer.scm)
 
 # Every mutation is undone with git, not with a saved copy: if this script is
 # killed outright no trap runs, and a stashed copy in /tmp would be the only
@@ -29,10 +33,10 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
   echo "mutants: not a git repository; refusing to run without a way to undo" >&2
   exit 1
 fi
-if ! dirty=$(git diff --name-only -- $SOURCES) || [ -n "$dirty" ]; then
+if ! dirty=$(git diff --name-only -- "${SOURCES[@]}") || [ -n "$dirty" ]; then
   echo "mutants: these sources have uncommitted changes, and this script would" >&2
   echo "         revert them with git checkout. Commit or stash first:" >&2
-  printf '           %s\n' $dirty >&2
+  printf '           %s\n' "$dirty" >&2
   exit 1
 fi
 
@@ -57,12 +61,12 @@ mutate() {
   fi
 
   oracle=
-  $GMAKE clean > /dev/null 2>&1 || true
-  if ! $TO $GMAKE build > /dev/null 2>&1; then
+  "$GMAKE" clean > /dev/null 2>&1 || true
+  if ! "${TO[@]}" "$GMAKE" build > /dev/null 2>&1; then
     oracle="compile"
-  elif ! $TO $GMAKE unit > /dev/null 2>&1; then
+  elif ! "${TO[@]}" "$GMAKE" unit > /dev/null 2>&1; then
     oracle="unit"
-  elif ! $TO $GMAKE frames-diff > /dev/null 2>&1; then
+  elif ! "${TO[@]}" "$GMAKE" frames-diff > /dev/null 2>&1; then
     oracle="diff"
   fi
 
