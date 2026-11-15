@@ -8,7 +8,7 @@ Context
 Host
   nexus, FreeBSD 15.1-RELEASE amd64, user dsp-dr.
   guile3 3.0.10, bare guile 2.2.7, GNU Emacs 30.2 (Org tangle),
-  gmake, bash 5.3.15. No gforth.
+  gforth 0.7.3_15, gmake, bash 5.3.15.
 
 Timeline (2026-11-15, all times EST)
   13:28  git init in the empty ghq path; ~/ghq is itself a repo but
@@ -17,26 +17,25 @@ Timeline (2026-11-15, all times EST)
   13:37  Verify section: all 13 digests ok, both 755 modes ok, verify PASS.
   13:38  gmake build: three .go modules compiled clean.
   13:39  gmake unit: PASS cell-test, PASS vm-test, PASS outer-test.
-  13:39  bin/keel tests/frames-check.fs: 57 lines, exit 0.
-  13:41  initial commit.
+  13:41  initial commit; pushed as a private repository.
+  13:59  gforth 0.7.3_15 installed from pkg by jwalsh (needed root).
+  14:00  gmake frames-diff: PASS, 57 lines identical to gforth.
+  14:00  full gmake from clean: all four lines match Expected results.
+  14:00  ghq get aygp-dr/forth-keel; gmake trials: layer 0 22/22 in 8.4 s.
+  14:01  repository made public at the requester's instruction.
 
-Verification actually performed
+Verification performed, all on this host
   PASS  tangle reproduces all 13 files byte-for-byte (SHA-256)
   PASS  gmake build (Guile 3.0.10)
   PASS  gmake unit, all three SRFI-64 suites
-  PASS  bin/keel runs tests/frames-check.fs to completion, 57 output lines,
-        the count the org file records as identical to gforth
+  PASS  gmake frames-diff, 57 lines identical to gforth 0.7.3
+  PASS  gmake trials, forth-keel sea-trials layer 0: 22/22, 8.4 s
+        (org file records about 6 s on Guile 3.0.9 / Linux x86_64)
   PASS  README usage examples: --bare '3 4 + 48 + emit' prints 7;
         'do' outside a definition errors and exits 1; KEEL_STEPS=1000 on an
         endless loop reports "step limit reached" rather than hanging
-  NOT RUN  gmake frames-diff  -- needs gforth; pkg has gforth-0.7.3_15 but
-        installing it needs root and sudo here requires a password. The
-        keel side runs; the gforth side was never executed, so the claim
-        "output identical to gforth" is carried over from the org file and
-        is NOT independently confirmed on this host.
-  NOT RUN  gmake trials  -- needs aygp-dr/forth-keel at ../../aygp-dr/
-        forth-keel; that repository is not checked out on nexus. The
-        "layer 0: 22/22" figure is likewise carried over, not reproduced.
+  Every figure in the org file's Expected results section is reproduced
+  here. Nothing in this note is carried over unverified.
 
 Deviations from the org file's procedure
   1. guile on PATH is 2.2.7 on this host. Rather than symlink into ~/bin or
@@ -46,7 +45,10 @@ Deviations from the org file's procedure
      only. Nothing outside the repository was modified. Anyone building
      here needs the same shim, or gmake GUILE=guile3 plus a shebang edit.
      Note that the Makefile's unit target calls bare "guile", not $(GUILE),
-     so GUILE=guile3 alone is not sufficient on nexus.
+     so GUILE=guile3 alone is NOT sufficient on nexus. Changing the two
+     bare "guile" calls in the unit recipe to $(GUILE) would fix this; it
+     has not been changed, because the Makefile is a tangled file with a
+     recorded digest and the fix belongs in the org block plus a detangle.
   2. .remember/ (Claude session state, mode 700) sits in the working tree.
      It is excluded via .git/info/exclude rather than .gitignore, because
      .gitignore is a tangled file with a recorded digest and editing it
@@ -57,8 +59,15 @@ Considerations
   password, secret, token, bearer, private-key and address patterns before
   staging; the only hits were the word "token" in a parsing docstring. All
   14 files were staged by name, never git add -A. build/ is gitignored and
-  was not committed.
+  was not committed. The same scan is why the later switch from private to
+  public carried no disclosure risk.
 
 Clarifications
-  Attribution is Daria Pascal <dpascal@defrecord.com>, set repo-locally as
-  well as globally, at the requester's instruction.
+  Attribution is Daria Pascal <dpascal@defrecord.com>, author and
+  committer, set repo-locally as well as globally, at the requester's
+  instruction.
+  Collaborators invited with write access: jwalsh, aygp-dr, seanjensengrey.
+  Each login was checked against the GitHub API before the invitation, when
+  the repository was still private.
+  This note was rewritten at 14:01 to record the two tests that could not
+  run at commit time. The commit itself is unchanged.
