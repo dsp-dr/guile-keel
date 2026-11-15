@@ -1,0 +1,29 @@
+#!/usr/bin/env -S guile --no-auto-compile -e main -s
+!#
+;;; keel [--bare] [-e CODE] FILE ...
+;;; Load forth/frames.fs (unless --bare), then each FILE and each -e CODE in order.
+;;; Exit 1 on the first error, printing it to stderr.
+(define here-dir (dirname (dirname (current-filename))))
+(set! %load-path (cons (string-append here-dir "/src") %load-path))
+(set! %load-compiled-path (cons (string-append here-dir "/build") %load-compiled-path))
+(use-modules (keel vm) (keel outer) (ice-9 match))
+
+(define (main args)
+  (set-port-encoding! (current-output-port) "ISO-8859-1")
+  (let ((vm (make-keel)) (bare #f) (status 0))
+    (define (do-it thunk)
+      (catch 'keel-error thunk
+        (lambda (key msg)
+          (force-output (current-output-port))
+          (format (current-error-port) "keel: ~a~%" msg)
+          (exit 1))))
+    (let loop ((as (cdr args)) (actions '()))
+      (match as
+        (("--bare" . rest) (set! bare #t) (loop rest actions))
+        (("-e" code . rest) (loop rest (cons (lambda () (interpret-string! vm code)) actions)))
+        ((file . rest) (loop rest (cons (lambda () (load-file! vm file)) actions)))
+        (()
+         (unless bare (do-it (lambda () (load-file! vm (string-append here-dir "/forth/frames.fs")))))
+         (for-each do-it (reverse actions)))))
+    (force-output (current-output-port))
+    (exit status)))
