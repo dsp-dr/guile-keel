@@ -1,0 +1,64 @@
+Context
+  Built from guile-keel-2026-11-15.org, a literate single-file carrier of
+  the whole repository handed over for this session. The org file is the
+  source of record: it tangles to all 13 tracked files and carries their
+  SHA-256 digests. Procedure followed as written in its sections Tangle,
+  Verify and Build and test.
+
+Host
+  nexus, FreeBSD 15.1-RELEASE amd64, user dsp-dr.
+  guile3 3.0.10, bare guile 2.2.7, GNU Emacs 30.2 (Org tangle),
+  gmake, bash 5.3.15. No gforth.
+
+Timeline (2026-11-15, all times EST)
+  13:28  git init in the empty ghq path; ~/ghq is itself a repo but
+         ignores github.com/, so this nested repo is the normal ghq layout.
+  13:37  emacs --batch tangle: "Tangled 13 code blocks".
+  13:37  Verify section: all 13 digests ok, both 755 modes ok, verify PASS.
+  13:38  gmake build: three .go modules compiled clean.
+  13:39  gmake unit: PASS cell-test, PASS vm-test, PASS outer-test.
+  13:39  bin/keel tests/frames-check.fs: 57 lines, exit 0.
+  13:41  initial commit.
+
+Verification actually performed
+  PASS  tangle reproduces all 13 files byte-for-byte (SHA-256)
+  PASS  gmake build (Guile 3.0.10)
+  PASS  gmake unit, all three SRFI-64 suites
+  PASS  bin/keel runs tests/frames-check.fs to completion, 57 output lines,
+        the count the org file records as identical to gforth
+  PASS  README usage examples: --bare '3 4 + 48 + emit' prints 7;
+        'do' outside a definition errors and exits 1; KEEL_STEPS=1000 on an
+        endless loop reports "step limit reached" rather than hanging
+  NOT RUN  gmake frames-diff  -- needs gforth; pkg has gforth-0.7.3_15 but
+        installing it needs root and sudo here requires a password. The
+        keel side runs; the gforth side was never executed, so the claim
+        "output identical to gforth" is carried over from the org file and
+        is NOT independently confirmed on this host.
+  NOT RUN  gmake trials  -- needs aygp-dr/forth-keel at ../../aygp-dr/
+        forth-keel; that repository is not checked out on nexus. The
+        "layer 0: 22/22" figure is likewise carried over, not reproduced.
+
+Deviations from the org file's procedure
+  1. guile on PATH is 2.2.7 on this host. Rather than symlink into ~/bin or
+     edit bin/keel's shebang (which would break its recorded digest), a
+     guile -> /usr/local/bin/guile3 symlink was placed in a session
+     scratchpad directory and prepended to PATH for the build and test runs
+     only. Nothing outside the repository was modified. Anyone building
+     here needs the same shim, or gmake GUILE=guile3 plus a shebang edit.
+     Note that the Makefile's unit target calls bare "guile", not $(GUILE),
+     so GUILE=guile3 alone is not sufficient on nexus.
+  2. .remember/ (Claude session state, mode 700) sits in the working tree.
+     It is excluded via .git/info/exclude rather than .gitignore, because
+     .gitignore is a tangled file with a recorded digest and editing it
+     would fail the Verify section.
+
+Considerations
+  No secrets, credentials or PII: every candidate file was grepped for key,
+  password, secret, token, bearer, private-key and address patterns before
+  staging; the only hits were the word "token" in a parsing docstring. All
+  14 files were staged by name, never git add -A. build/ is gitignored and
+  was not committed.
+
+Clarifications
+  Attribution is Daria Pascal <dpascal@defrecord.com>, set repo-locally as
+  well as globally, at the requester's instruction.
