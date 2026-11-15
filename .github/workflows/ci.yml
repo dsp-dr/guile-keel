@@ -1,0 +1,92 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 6 * * 1'   # Monday 06:17 UTC, for the mutation run
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: build, unit, differential (linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Guile 3 and gforth
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends guile-3.0 gforth
+      - name: Report the toolchain actually selected
+        run: make tools
+      - name: Build, unit suites, differential test against gforth
+        run: make
+
+  trials:
+    name: forth-keel sea-trials layer 0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: guile-keel
+      - uses: actions/checkout@v4
+        with:
+          repository: aygp-dr/forth-keel
+          path: forth-keel
+      - name: Install Guile 3 and gforth
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends guile-3.0 gforth
+      - name: Build
+        run: make build
+        working-directory: guile-keel
+      - name: Sea-trials, layer 0
+        run: make trials FORTH_KEEL="$GITHUB_WORKSPACE/forth-keel"
+        working-directory: guile-keel
+
+  freebsd:
+    name: build and test (freebsd, the primary target)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test in a FreeBSD VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y guile3 gforth gmake bash
+          run: |
+            gmake tools
+            gmake
+
+  shell:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+      - name: Lint the shell scripts
+        run: shellcheck tests/frames-diff.sh tests/mutants.sh
+
+  mutants:
+    name: mutation suite
+    # Slow by nature: every mutant is a full rebuild plus the suites. Kept off
+    # the push path and run weekly, or on demand.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Guile 3 and gforth
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends guile-3.0 gforth
+      - name: Every mutant must be caught by some suite
+        run: tests/mutants.sh

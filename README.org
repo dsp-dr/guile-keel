@@ -1,10 +1,12 @@
 #+TITLE: guile-keel
 #+OPTIONS: toc:nil num:nil
 
+[[https://github.com/dsp-dr/guile-keel/actions/workflows/ci.yml][https://github.com/dsp-dr/guile-keel/actions/workflows/ci.yml/badge.svg]]
 [[https://img.shields.io/badge/Guile-3.0%2B-blue.svg]]
 [[https://img.shields.io/badge/gforth-0.7.3-informational.svg]]
 [[https://img.shields.io/badge/sea--trials%20layer%200-22%2F22-brightgreen.svg]]
 [[https://img.shields.io/badge/unit%20tests-3%20suites%20passing-brightgreen.svg]]
+[[https://img.shields.io/badge/mutants-30%2F30%20killed-brightgreen.svg]]
 [[https://img.shields.io/badge/cells-32--bit-blue.svg]]
 [[https://img.shields.io/badge/platform-FreeBSD%20%7C%20Linux-lightgrey.svg]]
 
@@ -130,7 +132,9 @@ constants it takes 1.5 s.
 
 #+begin_src sh
 make            # build, unit tests (cell, vm, outer), differential test vs gforth
+make tools      # report which guile and gforth were selected
 make trials     # forth-keel sea-trials layer 0 (FORTH_KEEL=../../aygp-dr/forth-keel)
+tests/mutants.sh   # mutation testing: every mutant must be caught by some suite
 bin/keel file.fs            # load frames.fs, then file.fs
 bin/keel -e '10 0 do i . loop'   # error: do outside a definition, as in gforth
 bin/keel --bare -e '3 4 + 48 + emit'   # primitives only, no frames.fs
@@ -138,6 +142,26 @@ bin/keel --bare -e '3 4 + 48 + emit'   # primitives only, no frames.fs
 
 ~KEEL_STEPS~ sets the instruction budget per top-level word (default 200
 million); exceeding it is an error rather than a hang.
+
+~GUILE~ and ~GFORTH~ select the interpreters and are exported to the scripts,
+so one setting drives compilation, the suites and the differential test
+together. ~bin/keel~ finds ~guile3~, ~guile-3.0~ or ~guile~ on its own, in
+that order, so a host that carries only ~guile3~ needs no symlink.
+
+* Testing
+
+~tests/mutants.sh~ breaks the implementation on purpose, one edit at a time,
+and requires some suite to notice. Thirty mutants, all killed: twenty-nine by
+the unit suites and one (little-endian memory becoming big-endian) only by
+the differential test against gforth. It rewrites tracked sources and undoes
+each edit with ~git checkout~, so it refuses to start unless the three
+modules are committed.
+
+The suites run under ~--fresh-auto-compile~ by design. Guile caches each
+compiled suite under ~~/.cache/guile/ccache~ keyed by that file's own path
+and mtime, and the modules export ~define-inlinable~ procedures whose bodies
+are inlined into that cache. Without the flag, editing a module and re-running
+the suites tests the inlined guards from *before* the edit.
 
 * Known differences from gforth
 
