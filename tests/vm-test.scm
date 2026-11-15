@@ -48,6 +48,28 @@
 (test-error "+ on an empty stack underflows" 'keel-error (run vm '() "+"))
 (test-error "um/mod by zero" 'keel-error (run vm '(1 0 0) "um/mod"))
 (test-error "@ outside memory" 'keel-error (run vm (list mem-size) "@"))
+
+;; The guards below are checked by message, not merely by "something was
+;; raised". Mutation testing showed that loosening a bounds test still leaves
+;; an error coming out, just a different and later one: + pops twice, so an
+;; off-by-one underflow check still trips on the second pop, and a read past
+;; the top of memory still fails inside the bytevector rather than in the
+;; guard. A single-pop primitive and a one-cell-wide overrun pin them down.
+(define (raised-key thunk)
+  (catch #t (lambda () (thunk) 'no-error) (lambda (key . args) key)))
+(define (raised-msg thunk)
+  (catch #t (lambda () (thunk) "no error")
+    (lambda (key . args)
+      (if (and (pair? args) (string? (car args))) (car args) (symbol->string key)))))
+
+(test-equal "0= on an empty stack underflows on its only pop" "data stack underflow"
+            (raised-msg (lambda () (run vm '() "0="))))
+(test-equal "rpop! on an empty return stack underflows" "return stack underflow"
+            (raised-msg (lambda () (let ((v (fresh))) (reset-stacks! v) (rpop! v)))))
+(test-equal "@ one byte below the top of memory cannot read a whole cell" 'keel-error
+            (raised-key (lambda () (run vm (list (- mem-size 1)) "@"))))
+(test-equal "! one byte below the top of memory cannot write a whole cell" 'keel-error
+            (raised-key (lambda () (run vm (list 7 (- mem-size 1)) "!"))))
 (let ((vm2 (fresh)))
   ;; a word that calls itself forever overflows the return stack
   (interpret-string! vm2 ": forever")

@@ -2,7 +2,15 @@
 (use-modules (keel cell) (srfi srfi-1) (srfi srfi-64) (ice-9 receive))
 (test-runner-current (test-runner-simple))
 (define rng (seed->random-state 20261115))
-(define edges (list 0 1 2 3 #x7FFFFFFF #x80000000 #x80000001 #xFFFFFFFE #xFFFFFFFF #x10000 #xFFFF))
+(define edges (list 0 1 2 3 #x3FFFFFFF #x40000000 #x7FFFFFFF #x80000000 #x80000001
+                    #xFFFFFFFE #xFFFFFFFF #x10000 #xFFFF))
+
+;; The key an expression raises, or 'no-error. SRFI-64's test-error does not
+;; enforce the error kind in the simple runner, so "it threw something" would
+;; pass even when the something is a host arithmetic error escaping from a
+;; missing guard. Mutation testing found exactly that gap.
+(define (raised-key thunk)
+  (catch #t (lambda () (thunk) 'no-error) (lambda (key . args) key)))
 (define (rand-u32) (random #x100000000 rng))
 (define (samples n) (append edges (map (lambda (_) (rand-u32)) (iota n))))
 (define (all-pairs xs) (append-map (lambda (a) (map (lambda (b) (cons a b)) xs)) xs))
@@ -27,8 +35,18 @@
     (test-equal "um/mod r" 1 r))
   (receive (r q) (cell-um/mod 0 1 2)   ; 2^32 / 2
     (test-equal "um/mod 2^32/2" #x80000000 q))
-  (test-error "um/mod by zero" 'keel-error (cell-um/mod 1 0 0))
-  (test-error "um/mod overflow" 'keel-error (cell-um/mod 0 1 1)))
+  ;; s32 must only treat the top bit as the sign. A boundary set anywhere
+  ;; lower still answers correctly for #x80000000 and #xFFFFFFFF, so the
+  ;; positive side needs probing too.
+  (test-equal "s32 at 2^30 stays positive" #x40000000 (s32 #x40000000))
+  (test-equal "s32 just below the sign bit stays positive" #x7FFFFFFF (s32 #x7FFFFFFF))
+  (test-equal "s32 at the sign bit is the most negative cell" -2147483648 (s32 #x80000000))
+  ;; These must be keel's own error, not a host divide-by-zero or bignum
+  ;; range error leaking through a guard that was removed.
+  (test-equal "um/mod by zero raises keel-error" 'keel-error
+              (raised-key (lambda () (cell-um/mod 1 0 0))))
+  (test-equal "um/mod quotient overflow raises keel-error" 'keel-error
+              (raised-key (lambda () (cell-um/mod 0 1 1)))))
 
 (define xs (samples 30))
 (define ps (all-pairs xs))
