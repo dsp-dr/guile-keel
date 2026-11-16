@@ -107,6 +107,7 @@ jobs:
     name: build, unit, differential, trials (macos)
     # Homebrew's gmake: the Makefile's .RECIPEPREFIX needs GNU make 3.82+, and
     # macOS ships 3.81. Homebrew bash too, since /bin/bash there is 3.2.
+    # Mutants stay Linux-only (weekly); this job is the portability check.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -116,8 +117,12 @@ jobs:
         with:
           repository: aygp-dr/forth-keel
           path: forth-keel
-      - name: Install Guile 3, gforth, GNU make and bash
-        run: brew install guile gforth make bash
+      - name: Install Guile 3, gforth, GNU make, bash and coreutils
+        # coreutils for `timeout`: forth-keel's sea-trials/run.sh calls it, and
+        # macOS has none (Homebrew installs it as gtimeout unless gnubin is on PATH)
+        run: |
+          brew install guile gforth make bash coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
       - name: Report the toolchain actually selected
         run: gmake tools
         working-directory: guile-keel
