@@ -1,0 +1,81 @@
+{
+  "freebsd": {
+    "job": "freebsd",
+    "status": "success",
+    "sha": "20e0090bd4da3a0ee1115e0b6e5aa078cf3d890a",
+    "ref": "main",
+    "run_id": 43800917652,
+    "run_attempt": 1,
+    "event": "push",
+    "date": "2026-11-16T03:55:55Z",
+    "os": "FreeBSD amd64",
+    "guile": "guile (GNU Guile) 3.0.11",
+    "gforth": "gforth 0.7.3",
+    "metrics": {
+      "unit_pass": 3,
+      "unit_fail": 0,
+      "diff_lines": 57,
+      "diff_pass": true
+    }
+  },
+  "macos": {
+    "job": "macos",
+    "status": "success",
+    "sha": "20e0090bd4da3a0ee1115e0b6e5aa078cf3d890a",
+    "ref": "main",
+    "run_id": 43800917652,
+    "run_attempt": 1,
+    "event": "push",
+    "date": "2026-11-16T03:55:25Z",
+    "os": "Darwin arm64",
+    "guile": "guile (GNU Guile) 3.0.11",
+    "gforth": "gforth 0.7.3",
+    "metrics": {
+      "unit_pass": 3,
+      "unit_fail": 0,
+      "diff_lines": 57,
+      "diff_pass": true,
+      "layer0_pass": 22,
+      "layer0_total": 22
+    }
+  },
+  "test": {
+    "job": "test",
+    "status": "success",
+    "sha": "20e0090bd4da3a0ee1115e0b6e5aa078cf3d890a",
+    "ref": "main",
+    "run_id": 43800917652,
+    "run_attempt": 1,
+    "event": "push",
+    "date": "2026-11-16T03:55:09Z",
+    "os": "Linux x86_64",
+    "guile": "guile (GNU Guile) 3.0.9",
+    "gforth": "gforth 0.7.3",
+    "metrics": {
+      "unit_pass": 3,
+      "unit_fail": 0,
+      "diff_lines": 57,
+      "diff_pass": true
+    }
+  },
+  "trials": {
+    "job": "trials",
+    "status": "success",
+    "sha": "20e0090bd4da3a0ee1115e0b6e5aa078cf3d890a",
+    "ref": "main",
+    "run_id": 43800917652,
+    "run_attempt": 1,
+    "event": "push",
+    "date": "2026-11-16T03:55:11Z",
+    "os": "Linux x86_64",
+    "guile": "guile (GNU Guile) 3.0.9",
+    "gforth": "gforth 0.7.3",
+    "metrics": {
+      "layer0_pass": 22,
+      "layer0_total": 22,
+      "pass": 22,
+      "fail": 0,
+      "skip": 0
+    }
+  }
+}
