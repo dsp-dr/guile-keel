@@ -10,8 +10,8 @@ checked.
 
 | technique         | question                                        | oracle                          | runs                      | status   |
 |-------------------+-------------------------------------------------+---------------------------------+---------------------------+----------|
-| unit tests        | does each layer do what its spec says?          | exact arithmetic, SRFI-64 cases | every push, Linux+FreeBSD | built    |
-| differential      | does Forth on this keel behave like gforth?     | gforth 0.7.3                    | every push, Linux+FreeBSD | built    |
+| unit tests        | does each layer do what its spec says?          | exact arithmetic, SRFI-64 cases | every push, Linux/FreeBSD/macOS | built    |
+| differential      | does Forth on this keel behave like gforth?     | gforth 0.7.3                    | every push, Linux/FreeBSD/macOS | built    |
 | property-based    | does a property hold over generated inputs?     | the property                    | every push (cell only)    | partial  |
 | mutation testing  | would the suites notice a wrong implementation? | the suites themselves           | weekly, or on demand      | built    |
 | fault injection   | does a fault at run time surface, not hide?     | the suites + sea-trials         | --                        | not built |
@@ -87,7 +87,7 @@ what the suites printed (never typed from the README):
 
 | field           | content                                                       |
 |-----------------+---------------------------------------------------------------|
-| job, status     | test, trials, freebsd, mutants; success or failure            |
+| job, status     | test, trials, freebsd, macos, mutants; success or failure     |
 | sha, ref, event | the commit and what triggered the run                         |
 | run_id, date    | the Actions run and the UTC time                              |
 | os, guile, gforth | the toolchain the job actually used                         |
@@ -96,6 +96,7 @@ what the suites printed (never typed from the README):
 | job            | metrics                                                          |
 |----------------+------------------------------------------------------------------|
 | test, freebsd  | unit_pass, unit_fail, diff_lines, diff_pass                      |
+| macos          | the test fields plus layer0_pass, layer0_total                   |
 | trials         | layer0_pass, layer0_total, pass, fail, skip                      |
 | mutants        | killed, survived, not_applied, by_oracle {compile, unit, diff}   |
 

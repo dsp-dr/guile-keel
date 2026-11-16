@@ -103,6 +103,47 @@ jobs:
           path: results/freebsd.json
           retention-days: 90
 
+  macos:
+    name: build, unit, differential, trials (macos)
+    # Homebrew's gmake: the Makefile's .RECIPEPREFIX needs GNU make 3.82+, and
+    # macOS ships 3.81. Homebrew bash too, since /bin/bash there is 3.2.
+    # Mutants stay Linux-only (weekly); this job is the portability check.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: guile-keel
+      - uses: actions/checkout@v4
+        with:
+          repository: aygp-dr/forth-keel
+          path: forth-keel
+      - name: Install Guile 3, gforth, GNU make, bash and coreutils
+        # coreutils for `timeout`: forth-keel's sea-trials/run.sh calls it, and
+        # macOS has none (Homebrew installs it as gtimeout unless gnubin is on PATH)
+        run: |
+          brew install guile gforth make bash coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+      - name: Report the toolchain actually selected
+        run: gmake tools
+        working-directory: guile-keel
+      - name: Build, unit suites, differential test, sea-trials layer 0
+        run: |
+          set -o pipefail
+          { gmake && gmake trials FORTH_KEEL="$GITHUB_WORKSPACE/forth-keel"; } 2>&1 | tee macos.log
+        working-directory: guile-keel
+      - name: Record
+        if: always()
+        working-directory: guile-keel
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: scripts/ci-record.sh macos macos.log results/macos.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: record-macos
+          path: guile-keel/results/macos.json
+          retention-days: 90
+
   shell:
     name: shellcheck
     runs-on: ubuntu-latest
@@ -144,7 +185,7 @@ jobs:
 
   record:
     name: commit the run's records to ci-results
-    needs: [test, trials, freebsd, mutants]
+    needs: [test, trials, freebsd, macos, mutants]
     # Even when a job failed (a failing run is data too), but only for main:
     # pull-request records stay as artifacts.
     if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

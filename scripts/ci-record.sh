@@ -30,6 +30,13 @@ case "$job" in
       "$(js "$(num 's/^pass \([0-9]*\) .*/\1/p')")" \
       "$(js "$(num 's/^pass [0-9]*  fail \([0-9]*\).*/\1/p')")" \
       "$(js "$(num 's/.*skip \([0-9]*\)$/\1/p')")") ;;
+  macos)
+    metrics=$(printf '{"unit_pass":%s,"unit_fail":%s,"diff_lines":%s,"diff_pass":%s,"layer0_pass":%s,"layer0_total":%s}' \
+      "$(cnt '^PASS (cell|vm|outer)-test')" "$(cnt '^FAIL (cell|vm|outer)-test')" \
+      "$(js "$(num 's/^PASS frames-diff (\([0-9]*\) lines.*/\1/p')")" \
+      "$(if grep -q '^PASS frames-diff' "$log"; then echo true; else echo false; fi)" \
+      "$(js "$(num 's/^layer 0: \([0-9]*\)\/[0-9]*/\1/p')")" \
+      "$(js "$(num 's/^layer 0: [0-9]*\/\([0-9]*\)/\1/p')")") ;;
   mutants)
     metrics=$(printf '{"killed":%s,"survived":%s,"not_applied":%s,"by_oracle":{"compile":%s,"unit":%s,"diff":%s}}' \
       "$(js "$(num 's/^mutants killed \([0-9]*\).*/\1/p')")" \
