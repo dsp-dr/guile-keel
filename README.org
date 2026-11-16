@@ -2,7 +2,7 @@
 #+OPTIONS: toc:nil num:nil
 
 [[https://github.com/dsp-dr/guile-keel/actions/workflows/ci.yml][https://github.com/dsp-dr/guile-keel/actions/workflows/ci.yml/badge.svg]]
-[[https://github.com/dsp-dr/guile-keel/blob/ci-results/latest.json][https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdsp-dr%2Fguile-keel%2Fci-results%2Flatest.json&query=%24.trials.metrics.layer0_pass&label=sea-trials%20layer%200%20passing&color=brightgreen]]
+[[https://github.com/dsp-dr/guile-keel/blob/ci-results/latest.json][https://img.shields.io/badge/dynamic/json.svg?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdsp-dr%2Fguile-keel%2Fci-results%2Flatest.json&query=%24.trials.metrics.layer0_pass&label=sea-trials%20layer%200%20passing&color=brightgreen]]
 [[https://img.shields.io/badge/license-MIT-blue.svg]]
 
 A Guile 3 host for [[https://github.com/aygp-dr/forth-keel][forth-keel]]: the
