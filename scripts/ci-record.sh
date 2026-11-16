@@ -12,7 +12,9 @@ cnt() { grep -c -E "$1" "$log" || true; }
 js()  { if [ -n "${1-}" ]; then printf '%s' "$1"; else printf null; fi; }
 str() { if [ -n "${1-}" ]; then printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"; else printf null; fi; }
 
-guile_v=$(${GUILE:-guile} --version 2>/dev/null | head -1)
+# Same search as the Makefile: FreeBSD's package installs guile3, not guile.
+guile_bin=${GUILE:-$(command -v guile3 || command -v guile-3.0 || command -v guile || echo guile)}
+guile_v=$("$guile_bin" --version 2>/dev/null | head -1)
 gforth_v=$(${GFORTH:-gforth} --version 2>&1 | head -1)
 
 case "$job" in
