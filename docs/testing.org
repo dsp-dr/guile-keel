@@ -1,0 +1,118 @@
+#+TITLE: Testing methodology
+#+OPTIONS: toc:2 num:nil
+
+How guile-keel is tested, what each kind of test is for, and where its numbers
+are kept. Four techniques, each with a different oracle and a different
+question. Nothing here counts as a pass unless it also says how many things it
+checked.
+
+* The four techniques
+
+| technique         | question                                        | oracle                          | runs                      | status   |
+|-------------------+-------------------------------------------------+---------------------------------+---------------------------+----------|
+| unit tests        | does each layer do what its spec says?          | exact arithmetic, SRFI-64 cases | every push, Linux+FreeBSD | built    |
+| differential      | does Forth on this keel behave like gforth?     | gforth 0.7.3                    | every push, Linux+FreeBSD | built    |
+| property-based    | does a property hold over generated inputs?     | the property                    | every push (cell only)    | partial  |
+| mutation testing  | would the suites notice a wrong implementation? | the suites themselves           | weekly, or on demand      | built    |
+| fault injection   | does a fault at run time surface, not hide?     | the suites + sea-trials         | --                        | not built |
+
+The sea-trials (layer 0 of the forth-keel hub, =make trials=) are a fifth
+check: conformance to the shared spec, the same programs every forth-keel host
+must pass.
+
+** Unit tests
+=tests/cell-test.scm=, =vm-test.scm=, =outer-test.scm= (SRFI-64), one per layer,
+written before the layer above it (see the README's build order). =cell-test=
+checks each primitive against exact integer arithmetic on 13 edge values (0 to
+3, both sides of 2^30, 2^31 and 2^32, and 0xFFFF / 0x10000) and on random values,
+in all pairs, before any memory or interpreter exists. It also checks the kind
+of error raised, not only that one was: SRFI-64's simple runner would pass a
+host arithmetic error escaping a missing guard (mutation testing found that).
+
+The suites run under =--fresh-auto-compile=; without it Guile's ccache runs
+stale inlined guards after an edit (found by mutation testing; see the
+Makefile).
+
+** Differential testing
+=tests/frames-diff.sh= runs =tests/frames-check.fs= under gforth 0.7.3 and under
+=bin/keel= and requires identical output, line for line. The record keeps the
+line count, so a shrinking check file shows up as a smaller number, not a pass.
+Known, documented differences from gforth (README, "Known differences") are
+kept out of the check file rather than excused in the diff.
+
+** Property-based testing
+Today: =cell-test= adds random 32-bit values from a fixed seed (=20261115=) to
+the edge values and checks each primitive, over all pairs, against exact
+arithmetic. That is property testing
+without shrinking: a failure prints the value, but no minimal case, and the seed
+is fixed so every run checks the same values.
+
+Not built yet, and the next step:
+- generated Forth programs run under gforth and =bin/keel=, compared like the
+  differential test, with a shrinker over the program text;
+- a varying seed per run, recorded in the run's record so a failure can be
+  replayed;
+- a coverage count: how many generated programs reached each word. A property
+  checked zero times passes vacuously; the count is what tells them apart.
+
+** Mutation testing
+=tests/mutants.sh= breaks the implementation one edit at a time (30 mutants)
+and requires some oracle to notice. Oracles are tried cheapest first:
+=compile=, then =unit=, then =diff=, and the record keeps which one killed each
+mutant. A mutant killed only by =diff= marks a gap in the unit suites (one
+today: little-endian memory turned big-endian).
+
+Rules: the sources must be committed (each mutant is undone with
+=git checkout=, never a copy in /tmp); each mutant has a timeout, because one
+disables the step budget. A surviving mutant is a missing test, not a bug, and
+the fix is a test that kills it.
+
+** Fault injection
+Mutation changes the source before the run. Fault injection changes the run:
+a cell corrupted mid-execution, a stack pointer moved, an =emit= dropped, a
+=key= returning end of input early. The question is different: not "would a
+wrong implementation be caught" but "does a fault that happens anyway surface
+as an error instead of a wrong answer". The step budget (=KEEL_STEPS=, an error
+instead of a hang) and the underflow checks are the only defences today.
+
+Not built yet. Proposed shape: a =KEEL_FAULT= setting naming one fault and the
+step at which to inject it, and a sweep that requires every injected fault to
+end in an error or a sea-trials/differential failure, recorded like mutants
+(injected, surfaced, silent).
+
+* What is recorded
+
+Each CI job writes one JSON record with =scripts/ci-record.sh=, parsed from
+what the suites printed (never typed from the README):
+
+| field           | content                                                       |
+|-----------------+---------------------------------------------------------------|
+| job, status     | test, trials, freebsd, mutants; success or failure            |
+| sha, ref, event | the commit and what triggered the run                         |
+| run_id, date    | the Actions run and the UTC time                              |
+| os, guile, gforth | the toolchain the job actually used                         |
+| metrics         | per job, below                                                |
+
+| job            | metrics                                                          |
+|----------------+------------------------------------------------------------------|
+| test, freebsd  | unit_pass, unit_fail, diff_lines, diff_pass                      |
+| trials         | layer0_pass, layer0_total, pass, fail, skip                      |
+| mutants        | killed, survived, not_applied, by_oracle {compile, unit, diff}   |
+
+Records are uploaded as artifacts on every run (90 days). On =main= and on the
+weekly run, the =record= job commits them to the orphan =ci-results= branch:
+
+- =runs/YYYY-MM/<date>-<sha>-<run>.json=: every job's record for one run;
+- =runs.jsonl=: one line per job record, the whole history;
+- =latest.json=: the newest record of each job (so the weekly mutants record
+  survives the push runs after it). The README's results badge reads this.
+
+Reading it:
+
+#+begin_src sh
+git fetch origin ci-results
+git show origin/ci-results:latest.json | jq '.mutants.metrics'
+git show origin/ci-results:runs.jsonl | jq -c 'select(.job=="trials") | [.date, .metrics.layer0_pass]'
+#+end_src
+
+A local run produces the same record: =make && scripts/ci-record.sh test LOG out.json=.
