@@ -2,13 +2,7 @@
 #+OPTIONS: toc:nil num:nil
 
 [[https://github.com/dsp-dr/guile-keel/actions/workflows/ci.yml][https://github.com/dsp-dr/guile-keel/actions/workflows/ci.yml/badge.svg]]
-[[https://img.shields.io/badge/Guile-3.0%2B-blue.svg]]
-[[https://img.shields.io/badge/gforth-0.7.3-informational.svg]]
-[[https://img.shields.io/badge/sea--trials%20layer%200-22%2F22-brightgreen.svg]]
-[[https://img.shields.io/badge/unit%20tests-3%20suites%20passing-brightgreen.svg]]
-[[https://img.shields.io/badge/mutants-30%2F30%20killed-brightgreen.svg]]
-[[https://img.shields.io/badge/cells-32--bit-blue.svg]]
-[[https://img.shields.io/badge/platform-FreeBSD%20%7C%20Linux-lightgrey.svg]]
+[[https://github.com/dsp-dr/guile-keel/blob/ci-results/latest.json][https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdsp-dr%2Fguile-keel%2Fci-results%2Flatest.json&query=%24.trials.metrics.layer0_pass&label=sea-trials%20layer%200%20passing&color=brightgreen]]
 [[https://img.shields.io/badge/license-MIT-blue.svg]]
 
 A Guile 3 host for [[https://github.com/aygp-dr/forth-keel][forth-keel]]: the
@@ -22,7 +16,8 @@ A Guile 3 host for [[https://github.com/aygp-dr/forth-keel][forth-keel]]: the
 | dictionary, bootstrap words, outer interpreter | ~src/keel/outer.scm~ | 202 lines |
 | frames: 151 Forth definitions                  | ~forth/frames.fs~    | 193 lines |
 
-Results on this host (Guile 3.0.9, x86_64):
+Results on the development host (Guile 3.0.9, x86_64); every CI run records its
+own on the [[https://github.com/dsp-dr/guile-keel/tree/ci-results][ci-results]] branch (see [[file:docs/testing.org][docs/testing.org]]):
 
 - forth-keel sea-trials layer 0: *22/22*, about 6 s for the whole suite.
 - ~tests/frames-check.fs~: output identical to gforth 0.7.3 (57 lines of
@@ -151,18 +146,20 @@ that order, so a host that carries only ~guile3~ needs no symlink.
 
 * Testing
 
-~tests/mutants.sh~ breaks the implementation on purpose, one edit at a time,
-and requires some suite to notice. Thirty mutants, all killed: twenty-nine by
-the unit suites and one (little-endian memory becoming big-endian) only by
-the differential test against gforth. It rewrites tracked sources and undoes
-each edit with ~git checkout~, so it refuses to start unless the three
-modules are committed.
+Unit suites per layer, a differential test against gforth 0.7.3, the forth-keel
+sea-trials, and mutation testing (30 mutants, each of which some suite must
+catch; weekly in CI). Property-based testing is partial and fault injection is
+not built yet. [[file:docs/testing.org][docs/testing.org]] gives each technique's oracle, trigger and
+pass rule.
 
-The suites run under ~--fresh-auto-compile~ by design. Guile caches each
-compiled suite under ~~/.cache/guile/ccache~ keyed by that file's own path
-and mtime, and the modules export ~define-inlinable~ procedures whose bodies
-are inlined into that cache. Without the flag, editing a module and re-running
-the suites tests the inlined guards from *before* the edit.
+Every CI job writes a JSON record of what it checked (counts parsed from the
+suites' own output, the toolchain and the commit). Runs on =main= and the weekly
+run commit them to the =ci-results= branch: =latest.json=, a per-run file, and
+=runs.jsonl= for the history. The badge above reads =latest.json=.
+
+The suites run under ~--fresh-auto-compile~ on purpose: Guile caches compiled
+suites keyed by their own path and mtime, so after editing a module the stale
+cache would test the inlined guards from before the edit.
 
 * Known differences from gforth
 

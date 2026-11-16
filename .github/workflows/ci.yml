@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# Every job tees its output to a log and turns it into a JSON record with
+# scripts/ci-record.sh (numbers parsed from what the suites printed). The
+# records are uploaded as artifacts; on main and on the weekly run the
+# `record` job commits them to the orphan `ci-results` branch, so the history
+# of runs is kept without commits on main. See docs/testing.org.
+
 jobs:
   test:
     name: build, unit, differential (linux)
@@ -24,7 +30,18 @@ jobs:
       - name: Report the toolchain actually selected
         run: make tools
       - name: Build, unit suites, differential test against gforth
-        run: make
+        run: set -o pipefail; make 2>&1 | tee test.log
+      - name: Record
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: scripts/ci-record.sh test test.log results/test.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: record-test
+          path: results/test.json
+          retention-days: 90
 
   trials:
     name: forth-keel sea-trials layer 0
@@ -45,8 +62,20 @@ jobs:
         run: make build
         working-directory: guile-keel
       - name: Sea-trials, layer 0
-        run: make trials FORTH_KEEL="$GITHUB_WORKSPACE/forth-keel"
+        run: set -o pipefail; make trials FORTH_KEEL="$GITHUB_WORKSPACE/forth-keel" 2>&1 | tee trials.log
         working-directory: guile-keel
+      - name: Record
+        if: always()
+        working-directory: guile-keel
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: scripts/ci-record.sh trials trials.log results/trials.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: record-trials
+          path: guile-keel/results/trials.json
+          retention-days: 90
 
   freebsd:
     name: build and test (freebsd, the primary target)
@@ -57,11 +86,22 @@ jobs:
         uses: vmactions/freebsd-vm@v1
         with:
           usesh: true
+          envs: 'GITHUB_SHA GITHUB_REF_NAME GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_EVENT_NAME'
           prepare: |
             pkg install -y guile3 gforth gmake bash
           run: |
             gmake tools
-            gmake
+            status=success
+            gmake > freebsd.log 2>&1 || status=failure
+            cat freebsd.log
+            JOB_STATUS=$status bash scripts/ci-record.sh freebsd freebsd.log results/freebsd.json
+            [ "$status" = success ]
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: record-freebsd
+          path: results/freebsd.json
+          retention-days: 90
 
   shell:
     name: shellcheck
@@ -73,7 +113,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends shellcheck
       - name: Lint the shell scripts
-        run: shellcheck tests/frames-diff.sh tests/mutants.sh
+        run: shellcheck tests/frames-diff.sh tests/mutants.sh scripts/ci-record.sh
 
   mutants:
     name: mutation suite
@@ -89,4 +129,65 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends guile-3.0 gforth
       - name: Every mutant must be caught by some suite
-        run: tests/mutants.sh
+        run: set -o pipefail; tests/mutants.sh 2>&1 | tee mutants.log
+      - name: Record
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: scripts/ci-record.sh mutants mutants.log results/mutants.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: record-mutants
+          path: results/mutants.json
+          retention-days: 90
+
+  record:
+    name: commit the run's records to ci-results
+    needs: [test, trials, freebsd, mutants]
+    # Even when a job failed (a failing run is data too), but only for main:
+    # pull-request records stay as artifacts.
+    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # this job only: pushes to the ci-results branch
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: record-*
+          path: records
+          merge-multiple: true
+      - uses: actions/checkout@v4
+        with:
+          path: results-branch
+          fetch-depth: 0
+      - name: Append to the ci-results branch
+        working-directory: results-branch
+        env:
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git ls-remote --exit-code --heads origin ci-results > /dev/null; then
+            git fetch -q origin ci-results && git switch -q ci-results
+          else
+            git switch -q --orphan ci-results
+          fi
+          day=$(date -u +%Y-%m-%d)
+          dir="runs/${day:0:7}"
+          mkdir -p "$dir"
+          # one file per run: every job's record, keyed by job
+          jq -s 'map({(.job): .}) | add' ../records/*.json > "$dir/${day}-${SHA:0:7}-${RUN_ID}.json"
+          cat ../records/*.json >> runs.jsonl
+          # latest.json keeps the newest record of each job, so the weekly
+          # mutants record is not erased by the push runs that follow it
+          if [ -f latest.json ]; then
+            jq -s '.[0] * (.[1:] | map({(.job): .}) | add)' latest.json ../records/*.json > latest.new
+          else
+            jq -s 'map({(.job): .}) | add' ../records/*.json > latest.new
+          fi
+          mv latest.new latest.json
+          git add runs runs.jsonl latest.json
+          git commit -qm "ci: record run ${RUN_ID} (${SHA:0:7})"
+          git push -q origin ci-results
